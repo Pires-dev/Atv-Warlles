@@ -1,0 +1,35 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+    FILE *registro_escolar;
+    registro_escolar = fopen("alunos.txt", "w");
+
+    if (registro_escolar == NULL) {
+        printf("Nao deu certo criar o arquivo! \n");
+        return 1;
+    }
+
+    fprintf(registro_escolar, "+-----+----------------------+------------+-------+\n");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n",
+            "ID", "Nome", "Matricula", "Sala");
+
+    fprintf(registro_escolar, "+-----+----------------------+------------+-------+\n");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n", "01", "Isaac Newton","20261", "1B");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n", "02", "Leonardo D'Caprio","20262", "3C");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n", "03", "Marrie Curie","20263", "2A");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n", "04", "Pitagoras de Samos", "20264", "2B");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n", "05", "Henry Danger","20265", "3A");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n", "06", "Oswaldo Cruz","20266", "1A");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n", "07", "Maria da Penha","20267", "2C");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n", "08", "Anita Garibaldi","20268", "1C");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n", "09", "Machado de Assis","20269", "3B");
+    fprintf(registro_escolar, "| %-3s | %-20s | %-10s | %-5s |\n", "10", "Floriano Peixoto","20270", "3B");
+    fprintf(registro_escolar, "+-----+----------------------+------------+-------+\n");
+
+    fclose(registro_escolar);
+
+    system("notepad alunos.txt");
+
+    return 0;
+}
