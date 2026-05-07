@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -9,592 +8,667 @@ typedef struct {
     int id;
     char nome[50];
     int idade;
-} Pessoa;
+    char curso[50];
+    char sala[10];
+    int matricula;
+} Aluno;
+
+typedef struct {
+    int id;
+    char nome[50];
+    int idade;
+    char disciplina[50];
+    char cpf[15];
+} Professor;
 
 char bancoAtual[50];
 
 // ======================================
-// LIMPAR BUFFER
+// FUNÇÕES COMPARTILHADAS
 // ======================================
+
 void limparBuffer() {
     while(getchar() != '\n');
 }
 
-// ======================================
-// REMOVER ESPAÇOS EXTRAS
-// ======================================
 void removerEspacos(char str[]) {
-
-    int i, j = 0;
-    int espaco = 0;
-
+    int i = 0, j = 0, espaco = 0;
     char temp[100];
 
-    for(i = 0; str[i] != '\0'; i++) {
+    while(str[i] == ' ') i++;
 
+    for(; str[i] != '\0'; i++) {
         if(str[i] != ' ') {
             temp[j++] = str[i];
             espaco = 0;
-        }
-        else if(!espaco) {
+        } else if(!espaco) {
             temp[j++] = ' ';
             espaco = 1;
         }
     }
 
+    if(j > 0 && temp[j-1] == ' ') j--;
     temp[j] = '\0';
-
     strcpy(str, temp);
 }
 
-// ======================================
-// VALIDAR NOME
-// ======================================
 int nomeValido(char nome[]) {
-
     int letras = 0;
-
     for(int i = 0; nome[i] != '\0'; i++) {
-
-        if(isalpha(nome[i])) {
-            letras = 1;
-        }
-        else if(nome[i] != ' ') {
-            return 0;
-        }
+        if(isalpha(nome[i])) letras = 1;
+        else if(nome[i] != ' ') return 0;
     }
-
     return letras;
 }
 
-// ======================================
-// GERAR ID AUTOMÁTICO
-// ======================================
+// Lê apenas o primeiro campo (id) de cada linha — funciona para qualquer formato
 int gerarID() {
-
     FILE *arquivo = fopen(bancoAtual, "r");
+    if(arquivo == NULL) return 1;
 
-    if(arquivo == NULL) {
-        return 1;
-    }
+    char linha[200];
+    int id, ultimoID = 0;
 
-    Pessoa p;
-
-    int ultimoID = 0;
-
-    while(fscanf(arquivo,
-           "%d;%49[^;];%d\n",
-           &p.id,
-           p.nome,
-           &p.idade) != EOF) {
-
-        ultimoID = p.id;
-    }
+    while(fgets(linha, sizeof(linha), arquivo) != NULL)
+        if(sscanf(linha, "%d;", &id) == 1)
+            ultimoID = id;
 
     fclose(arquivo);
-
     return ultimoID + 1;
 }
 
-// ======================================
-// VERIFICAR NOMES DUPLICADOS
-// ======================================
+// Lê o segundo campo (nome) de cada linha — funciona para qualquer formato
 int registroExiste(char nome[]) {
-
     FILE *arquivo = fopen(bancoAtual, "r");
+    if(arquivo == NULL) return 0;
 
-    if(arquivo == NULL) {
-        return 0;
-    }
+    char linha[200], nomeArq[50];
 
-    Pessoa p;
-
-    while(fscanf(arquivo,
-           "%d;%49[^;];%d\n",
-           &p.id,
-           p.nome,
-           &p.idade) != EOF) {
-
-        if(strcmp(p.nome, nome) == 0) {
-
-            fclose(arquivo);
-
-            return 1;
-        }
-    }
+    while(fgets(linha, sizeof(linha), arquivo) != NULL)
+        if(sscanf(linha, "%*d;%49[^;]", nomeArq) == 1)
+            if(strcmp(nomeArq, nome) == 0) {
+                fclose(arquivo);
+                return 1;
+            }
 
     fclose(arquivo);
-
     return 0;
 }
 
-// ======================================
-// ESCOLHER BANCO
-// ======================================
-void escolherBanco() {
+// Exclusão genérica: pula a linha cujo ID bate, sem precisar conhecer o formato
+void excluirRegistro() {
+    FILE *arquivo = fopen(bancoAtual, "r");
+    FILE *temp    = fopen("temp.txt", "w");
 
+    if(arquivo == NULL) {
+        printf("\nBanco vazio!\n");
+        fclose(temp);
+        remove("temp.txt");
+        return;
+    }
+
+    int idExcluir, encontrado = 0, id;
+    char confirmar, linha[200];
+
+    printf("\nDigite o ID para excluir: ");
+    scanf("%d", &idExcluir);
+    limparBuffer();
+
+    printf("Tem certeza? (s/n): ");
+    scanf("%c", &confirmar);
+
+    if(confirmar != 's' && confirmar != 'S') {
+        fclose(arquivo);
+        fclose(temp);
+        remove("temp.txt");
+        printf("\nExclusao cancelada!\n");
+        return;
+    }
+
+    while(fgets(linha, sizeof(linha), arquivo) != NULL) {
+        sscanf(linha, "%d;", &id);
+        if(id != idExcluir)
+            fputs(linha, temp);
+        else
+            encontrado = 1;
+    }
+
+    fclose(arquivo);
+    fclose(temp);
+    remove(bancoAtual);
+    rename("temp.txt", bancoAtual);
+
+    printf(encontrado ? "\nRegistro excluido com sucesso!\n" : "\nID nao encontrado!\n");
+}
+
+void escolherBanco() {
     int op;
 
     printf("\n=================================\n");
     printf("       ESCOLHER BANCO\n");
     printf("=================================\n");
-
     printf("1 - Alunos\n");
     printf("2 - Professores\n");
-
     printf("\nEscolha: ");
-
     scanf("%d", &op);
-
     limparBuffer();
 
-    if(op == 1) {
-        strcpy(bancoAtual, "alunos.txt");
-    }
-    else {
-        strcpy(bancoAtual, "professores.txt");
-    }
-
+    strcpy(bancoAtual, op == 1 ? "alunos.txt" : "professores.txt");
     printf("\nBanco selecionado: %s\n", bancoAtual);
 }
 
 // ======================================
-// ADICIONAR
+// FUNÇÕES DE ALUNO
 // ======================================
-void adicionar() {
 
+int gerarMatricula() {
+    FILE *arquivo = fopen(bancoAtual, "r");
+    if(arquivo == NULL) return 202601;
+
+    Aluno a;
+    int ultima = 202600;
+
+    while(fscanf(arquivo, "%d;%49[^;];%d;%49[^;];%9[^;];%d\n",
+           &a.id, a.nome, &a.idade, a.curso, a.sala, &a.matricula) != EOF)
+        ultima = a.matricula;
+
+    fclose(arquivo);
+    return ultima + 1;
+}
+
+void adicionarAluno() {
     FILE *arquivo = fopen(bancoAtual, "a");
+    if(arquivo == NULL) { printf("Erro ao abrir arquivo!\n"); return; }
 
-    if(arquivo == NULL) {
-
-        printf("Erro ao abrir arquivo!\n");
-
-        return;
-    }
-
-    Pessoa p;
-
+    Aluno a;
     char entrada[20];
 
-    // ======================
-    // GERAR ID
-    // ======================
-    p.id = gerarID();
+    a.id        = gerarID();
+    a.matricula = gerarMatricula();
 
-    // ======================
-    // VALIDAR NOME
-    // ======================
     do {
-
         printf("\nNome: ");
+        fgets(a.nome, sizeof(a.nome), stdin);
+        a.nome[strcspn(a.nome, "\n")] = 0;
+        removerEspacos(a.nome);
+        if(!nomeValido(a.nome)) printf("Nome invalido!\n");
+    } while(!nomeValido(a.nome));
 
-        fgets(p.nome, sizeof(p.nome), stdin);
-
-        p.nome[strcspn(p.nome, "\n")] = 0;
-
-        removerEspacos(p.nome);
-
-        if(!nomeValido(p.nome)) {
-
-            printf("Nome invalido!\n");
-        }
-
-    } while(!nomeValido(p.nome));
-
-    // ======================
-    // VERIFICAR DUPLICADOS
-    // ======================
-    if(registroExiste(p.nome)) {
-
+    if(registroExiste(a.nome)) {
         printf("\nERRO: Nome ja cadastrado!\n");
-
         fclose(arquivo);
-
         return;
     }
 
-    // ======================
-    // VALIDAR IDADE
-    // ======================
     do {
-
         printf("Idade: ");
-
         fgets(entrada, sizeof(entrada), stdin);
-
         entrada[strcspn(entrada, "\n")] = 0;
-
-        if(sscanf(entrada, "%d", &p.idade) != 1 ||
-           p.idade < 1 ||
-           p.idade > 100) {
-
+        if(sscanf(entrada, "%d", &a.idade) != 1 || a.idade < 1 || a.idade > 100) {
             printf("Idade invalida! Digite entre 1 e 100.\n");
-
-            p.idade = -1;
+            a.idade = -1;
         }
+    } while(a.idade < 1 || a.idade > 100);
 
-    } while(p.idade < 1 || p.idade > 100);
+    printf("Curso: ");
+    fgets(a.curso, sizeof(a.curso), stdin);
+    a.curso[strcspn(a.curso, "\n")] = 0;
+    removerEspacos(a.curso);
 
-    // ======================
-    // SALVAR
-    // ======================
-    fprintf(arquivo,
-            "%d;%s;%d\n",
-            p.id,
-            p.nome,
-            p.idade);
+    printf("Sala: ");
+    fgets(a.sala, sizeof(a.sala), stdin);
+    a.sala[strcspn(a.sala, "\n")] = 0;
+    removerEspacos(a.sala);
 
+    fprintf(arquivo, "%d;%s;%d;%s;%s;%d\n",
+            a.id, a.nome, a.idade, a.curso, a.sala, a.matricula);
     fclose(arquivo);
 
     printf("\n=================================\n");
-    printf("Registro adicionado com sucesso!\n");
+    printf("Aluno adicionado com sucesso!\n");
     printf("=================================\n");
 }
 
-// ======================================
-// LISTAR
-// ======================================
-void listar() {
-
+void listarAlunos() {
     FILE *arquivo = fopen(bancoAtual, "r");
+    if(arquivo == NULL) { printf("\nBanco vazio!\n"); return; }
 
-    if(arquivo == NULL) {
-
-        printf("\nBanco vazio!\n");
-
-        return;
-    }
-
-    Pessoa pessoas[MAX];
-
+    Aluno lista[MAX];
     int total = 0;
 
-    while(fscanf(arquivo,
-           "%d;%49[^;];%d\n",
-           &pessoas[total].id,
-           pessoas[total].nome,
-           &pessoas[total].idade) != EOF) {
-
+    while(total < MAX && fscanf(arquivo, "%d;%49[^;];%d;%49[^;];%9[^;];%d\n",
+           &lista[total].id, lista[total].nome, &lista[total].idade,
+           lista[total].curso, lista[total].sala, &lista[total].matricula) != EOF)
         total++;
-    }
 
     fclose(arquivo);
 
-    // ======================
-    // ORDENAR POR ID
-    // ======================
-    for(int i = 0; i < total - 1; i++) {
-
-        for(int j = i + 1; j < total; j++) {
-
-            if(pessoas[i].id > pessoas[j].id) {
-
-                Pessoa temp = pessoas[i];
-
-                pessoas[i] = pessoas[j];
-
-                pessoas[j] = temp;
+    for(int i = 0; i < total - 1; i++)
+        for(int j = i + 1; j < total; j++)
+            if(lista[i].id > lista[j].id) {
+                Aluno t = lista[i]; lista[i] = lista[j]; lista[j] = t;
             }
-        }
-    }
 
-    printf("\n=================================================\n");
+    printf("\n================================================================================\n");
+    printf("| %-4s | %-20s | %-5s | %-15s | %-5s | %-8s |\n",
+           "ID", "NOME", "IDADE", "CURSO", "SALA", "MATRICULA");
+    printf("================================================================================\n");
 
-    printf("| %-5s | %-25s | %-5s |\n",
-           "ID",
-           "NOME",
-           "IDADE");
+    for(int i = 0; i < total; i++)
+        printf("| %-4d | %-20s | %-5d | %-15s | %-5s | %-8d |\n",
+               lista[i].id, lista[i].nome, lista[i].idade,
+               lista[i].curso, lista[i].sala, lista[i].matricula);
 
-    printf("=================================================\n");
-
-    for(int i = 0; i < total; i++) {
-
-        printf("| %-5d | %-25s | %-5d |\n",
-               pessoas[i].id,
-               pessoas[i].nome,
-               pessoas[i].idade);
-    }
-
-    printf("=================================================\n");
+    printf("================================================================================\n");
 }
 
-// ======================================
-// BUSCAR
-// ======================================
-void buscar() {
-
+void buscarAluno() {
     FILE *arquivo = fopen(bancoAtual, "r");
+    if(arquivo == NULL) { printf("\nBanco vazio!\n"); return; }
 
-    if(arquivo == NULL) {
-
-        printf("\nBanco vazio!\n");
-
-        return;
-    }
-
-    Pessoa p;
-
-    int idBusca;
-    int encontrado = 0;
+    Aluno a;
+    int idBusca, encontrado = 0;
 
     printf("\nDigite o ID: ");
-
     scanf("%d", &idBusca);
-
     limparBuffer();
 
-    while(fscanf(arquivo,
-           "%d;%49[^;];%d\n",
-           &p.id,
-           p.nome,
-           &p.idade) != EOF) {
-
-        if(p.id == idBusca) {
-
+    while(fscanf(arquivo, "%d;%49[^;];%d;%49[^;];%9[^;];%d\n",
+           &a.id, a.nome, &a.idade, a.curso, a.sala, &a.matricula) != EOF) {
+        if(a.id == idBusca) {
             printf("\n=================================\n");
-
-            printf("Registro encontrado!\n");
-
-            printf("ID: %d\n", p.id);
-            printf("Nome: %s\n", p.nome);
-            printf("Idade: %d\n", p.idade);
-
+            printf("ID:        %d\n", a.id);
+            printf("Matricula: %d\n", a.matricula);
+            printf("Nome:      %s\n", a.nome);
+            printf("Idade:     %d\n", a.idade);
+            printf("Curso:     %s\n", a.curso);
+            printf("Sala:      %s\n", a.sala);
             printf("=================================\n");
-
             encontrado = 1;
-
             break;
         }
     }
 
-    if(!encontrado) {
-
-        printf("\nRegistro nao encontrado!\n");
-    }
-
+    if(!encontrado) printf("\nRegistro nao encontrado!\n");
     fclose(arquivo);
 }
 
-// ======================================
-// EDITAR
-// ======================================
-void editar() {
-
+void editarAluno() {
     FILE *arquivo = fopen(bancoAtual, "r");
-    FILE *temp = fopen("temp.txt", "w");
+    FILE *temp    = fopen("temp.txt", "w");
 
-    if(arquivo == NULL) {
+    if(arquivo == NULL) { printf("\nBanco vazio!\n"); return; }
 
-        printf("\nBanco vazio!\n");
-
-        return;
-    }
-
-    Pessoa p;
-
-    int idEditar;
-    int encontrado = 0;
-
-    char entrada[20];
-
-    char nomeAntigo[50];
+    Aluno a;
+    int idEditar, encontrado = 0;
+    char entrada[20], nomeAntigo[50], cursoAntigo[50], salaAntiga[10];
     int idadeAntiga;
 
     printf("\nDigite o ID para editar: ");
-
     scanf("%d", &idEditar);
-
     limparBuffer();
 
-    while(fscanf(arquivo,
-           "%d;%49[^;];%d\n",
-           &p.id,
-           p.nome,
-           &p.idade) != EOF) {
+    while(fscanf(arquivo, "%d;%49[^;];%d;%49[^;];%9[^;];%d\n",
+           &a.id, a.nome, &a.idade, a.curso, a.sala, &a.matricula) != EOF) {
+        if(a.id == idEditar) {
+            strcpy(nomeAntigo,  a.nome);
+            strcpy(cursoAntigo, a.curso);
+            strcpy(salaAntiga,  a.sala);
+            idadeAntiga = a.idade;
 
+            do {
+                printf("Novo nome: ");
+                fgets(a.nome, sizeof(a.nome), stdin);
+                a.nome[strcspn(a.nome, "\n")] = 0;
+                removerEspacos(a.nome);
+                if(!nomeValido(a.nome)) printf("Nome invalido!\n");
+            } while(!nomeValido(a.nome));
+
+            if(strcmp(a.nome, nomeAntigo) != 0 && registroExiste(a.nome)) {
+                printf("\nERRO: Nome ja cadastrado!\n");
+                fclose(arquivo); fclose(temp); remove("temp.txt");
+                return;
+            }
+
+            do {
+                printf("Nova idade: ");
+                fgets(entrada, sizeof(entrada), stdin);
+                entrada[strcspn(entrada, "\n")] = 0;
+                if(sscanf(entrada, "%d", &a.idade) != 1 || a.idade < 1 || a.idade > 100) {
+                    printf("Idade invalida!\n");
+                    a.idade = -1;
+                }
+            } while(a.idade < 1 || a.idade > 100);
+
+            printf("Novo curso: ");
+            fgets(a.curso, sizeof(a.curso), stdin);
+            a.curso[strcspn(a.curso, "\n")] = 0;
+            removerEspacos(a.curso);
+
+            printf("Nova sala: ");
+            fgets(a.sala, sizeof(a.sala), stdin);
+            a.sala[strcspn(a.sala, "\n")] = 0;
+            removerEspacos(a.sala);
+
+            encontrado = 1;
+        }
+
+        fprintf(temp, "%d;%s;%d;%s;%s;%d\n",
+                a.id, a.nome, a.idade, a.curso, a.sala, a.matricula);
+    }
+
+    fclose(arquivo); fclose(temp);
+    remove(bancoAtual); rename("temp.txt", bancoAtual);
+
+    if(encontrado) {
+        printf("\n=================================\n");
+        printf("Registro alterado!\n\n");
+        printf("ANTES:  %s | %d anos | %s | %s\n", nomeAntigo, idadeAntiga, cursoAntigo, salaAntiga);
+        printf("DEPOIS: %s | %d anos | %s | %s\n", a.nome, a.idade, a.curso, a.sala);
+        printf("=================================\n");
+    } else {
+        printf("\nID nao encontrado!\n");
+    }
+}
+
+// ======================================
+// FUNÇÕES DE PROFESSOR
+// ======================================
+
+int cpfValido(char cpf[]) {
+    char d[11];
+    int j = 0;
+
+    // Extrai apenas os dígitos
+    for(int i = 0; cpf[i] != '\0' && j < 11; i++)
+        if(isdigit(cpf[i])) d[j++] = cpf[i];
+
+    if(j != 11) return 0;
+
+    // Rejeita CPFs com todos os dígitos iguais (ex: 111.111.111-11)
+    int iguais = 1;
+    for(int i = 1; i < 11; i++)
+        if(d[i] != d[0]) { iguais = 0; break; }
+    if(iguais) return 0;
+
+    // Valida 1º dígito verificador
+    int soma = 0;
+    for(int i = 0; i < 9; i++) soma += (d[i] - '0') * (10 - i);
+    int r1 = (soma * 10) % 11;
+    if(r1 == 10) r1 = 0;
+    if(r1 != d[9] - '0') return 0;
+
+    // Valida 2º dígito verificador
+    soma = 0;
+    for(int i = 0; i < 10; i++) soma += (d[i] - '0') * (11 - i);
+    int r2 = (soma * 10) % 11;
+    if(r2 == 10) r2 = 0;
+    if(r2 != d[10] - '0') return 0;
+
+    return 1;
+}
+
+void formatarCPF(char cpf[], char saida[]) {
+    char d[11];
+    int j = 0;
+    for(int i = 0; cpf[i] != '\0' && j < 11; i++)
+        if(isdigit(cpf[i])) d[j++] = cpf[i];
+
+    sprintf(saida, "%c%c%c.%c%c%c.%c%c%c-%c%c",
+            d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7],d[8],d[9],d[10]);
+}
+
+int cpfExiste(char cpf[]) {
+    FILE *arquivo = fopen(bancoAtual, "r");
+    if(arquivo == NULL) return 0;
+
+    Professor p;
+    while(fscanf(arquivo, "%d;%49[^;];%d;%49[^;];%14[^\n]\n",
+           &p.id, p.nome, &p.idade, p.disciplina, p.cpf) != EOF)
+        if(strcmp(p.cpf, cpf) == 0) {
+            fclose(arquivo);
+            return 1;
+        }
+
+    fclose(arquivo);
+    return 0;
+}
+
+void adicionarProfessor() {
+    FILE *arquivo = fopen(bancoAtual, "a");
+    if(arquivo == NULL) { printf("Erro ao abrir arquivo!\n"); return; }
+
+    Professor p;
+    char entrada[20], cpfBruto[20], cpfFormatado[15];
+
+    p.id = gerarID();
+
+    do {
+        printf("\nNome: ");
+        fgets(p.nome, sizeof(p.nome), stdin);
+        p.nome[strcspn(p.nome, "\n")] = 0;
+        removerEspacos(p.nome);
+        if(!nomeValido(p.nome)) printf("Nome invalido!\n");
+    } while(!nomeValido(p.nome));
+
+    if(registroExiste(p.nome)) {
+        printf("\nERRO: Nome ja cadastrado!\n");
+        fclose(arquivo);
+        return;
+    }
+
+    do {
+        printf("Idade: ");
+        fgets(entrada, sizeof(entrada), stdin);
+        entrada[strcspn(entrada, "\n")] = 0;
+        if(sscanf(entrada, "%d", &p.idade) != 1 || p.idade < 18 || p.idade > 100) {
+            printf("Idade invalida! Professor deve ter entre 18 e 100 anos.\n");
+            p.idade = -1;
+        }
+    } while(p.idade < 18 || p.idade > 100);
+
+    printf("Disciplina: ");
+    fgets(p.disciplina, sizeof(p.disciplina), stdin);
+    p.disciplina[strcspn(p.disciplina, "\n")] = 0;
+    removerEspacos(p.disciplina);
+
+    do {
+        printf("CPF (somente numeros ou XXX.XXX.XXX-XX): ");
+        fgets(cpfBruto, sizeof(cpfBruto), stdin);
+        cpfBruto[strcspn(cpfBruto, "\n")] = 0;
+        if(!cpfValido(cpfBruto))
+            printf("CPF invalido! Verifique os digitos e tente novamente.\n");
+    } while(!cpfValido(cpfBruto));
+
+    formatarCPF(cpfBruto, cpfFormatado);
+
+    if(cpfExiste(cpfFormatado)) {
+        printf("\nERRO: CPF ja cadastrado!\n");
+        fclose(arquivo);
+        return;
+    }
+
+    strcpy(p.cpf, cpfFormatado);
+
+    fprintf(arquivo, "%d;%s;%d;%s;%s\n",
+            p.id, p.nome, p.idade, p.disciplina, p.cpf);
+    fclose(arquivo);
+
+    printf("\n=================================\n");
+    printf("Professor adicionado com sucesso!\n");
+    printf("=================================\n");
+}
+
+void listarProfessores() {
+    FILE *arquivo = fopen(bancoAtual, "r");
+    if(arquivo == NULL) { printf("\nBanco vazio!\n"); return; }
+
+    Professor lista[MAX];
+    int total = 0;
+
+    while(total < MAX && fscanf(arquivo, "%d;%49[^;];%d;%49[^;];%14[^\n]\n",
+           &lista[total].id, lista[total].nome, &lista[total].idade,
+           lista[total].disciplina, lista[total].cpf) != EOF)
+        total++;
+
+    fclose(arquivo);
+
+    for(int i = 0; i < total - 1; i++)
+        for(int j = i + 1; j < total; j++)
+            if(lista[i].id > lista[j].id) {
+                Professor t = lista[i]; lista[i] = lista[j]; lista[j] = t;
+            }
+
+    printf("\n=======================================================================\n");
+    printf("| %-4s | %-20s | %-5s | %-15s | %-14s |\n",
+           "ID", "NOME", "IDADE", "DISCIPLINA", "CPF");
+    printf("=======================================================================\n");
+
+    for(int i = 0; i < total; i++)
+        printf("| %-4d | %-20s | %-5d | %-15s | %-14s |\n",
+               lista[i].id, lista[i].nome, lista[i].idade,
+               lista[i].disciplina, lista[i].cpf);
+
+    printf("=======================================================================\n");
+}
+
+void buscarProfessor() {
+    FILE *arquivo = fopen(bancoAtual, "r");
+    if(arquivo == NULL) { printf("\nBanco vazio!\n"); return; }
+
+    Professor p;
+    int idBusca, encontrado = 0;
+
+    printf("\nDigite o ID: ");
+    scanf("%d", &idBusca);
+    limparBuffer();
+
+    while(fscanf(arquivo, "%d;%49[^;];%d;%49[^;];%14[^\n]\n",
+           &p.id, p.nome, &p.idade, p.disciplina, p.cpf) != EOF) {
+        if(p.id == idBusca) {
+            printf("\n=================================\n");
+            printf("ID:         %d\n", p.id);
+            printf("Nome:       %s\n", p.nome);
+            printf("Idade:      %d\n", p.idade);
+            printf("Disciplina: %s\n", p.disciplina);
+            printf("CPF:        %s\n", p.cpf);
+            printf("=================================\n");
+            encontrado = 1;
+            break;
+        }
+    }
+
+    if(!encontrado) printf("\nRegistro nao encontrado!\n");
+    fclose(arquivo);
+}
+
+void editarProfessor() {
+    FILE *arquivo = fopen(bancoAtual, "r");
+    FILE *temp    = fopen("temp.txt", "w");
+
+    if(arquivo == NULL) { printf("\nBanco vazio!\n"); return; }
+
+    Professor p;
+    int idEditar, encontrado = 0;
+    char entrada[20], nomeAntigo[50], discAntiga[50], cpfAntigo[15];
+    int idadeAntiga;
+    char cpfBruto[20], cpfFormatado[15];
+
+    printf("\nDigite o ID para editar: ");
+    scanf("%d", &idEditar);
+    limparBuffer();
+
+    while(fscanf(arquivo, "%d;%49[^;];%d;%49[^;];%14[^\n]\n",
+           &p.id, p.nome, &p.idade, p.disciplina, p.cpf) != EOF) {
         if(p.id == idEditar) {
-
             strcpy(nomeAntigo, p.nome);
-
+            strcpy(discAntiga, p.disciplina);
+            strcpy(cpfAntigo,  p.cpf);
             idadeAntiga = p.idade;
 
-            // ======================
-            // NOVO NOME
-            // ======================
             do {
-
                 printf("Novo nome: ");
-
                 fgets(p.nome, sizeof(p.nome), stdin);
-
                 p.nome[strcspn(p.nome, "\n")] = 0;
-
                 removerEspacos(p.nome);
-
-                if(!nomeValido(p.nome)) {
-
-                    printf("Nome invalido!\n");
-                }
-
+                if(!nomeValido(p.nome)) printf("Nome invalido!\n");
             } while(!nomeValido(p.nome));
 
-            // ======================
-            // NOVA IDADE
-            // ======================
+            if(strcmp(p.nome, nomeAntigo) != 0 && registroExiste(p.nome)) {
+                printf("\nERRO: Nome ja cadastrado!\n");
+                fclose(arquivo); fclose(temp); remove("temp.txt");
+                return;
+            }
+
             do {
-
                 printf("Nova idade: ");
-
                 fgets(entrada, sizeof(entrada), stdin);
-
                 entrada[strcspn(entrada, "\n")] = 0;
-
-                if(sscanf(entrada, "%d", &p.idade) != 1 ||
-                   p.idade < 1 ||
-                   p.idade > 100) {
-
-                    printf("Idade invalida! Digite entre 1 e 100.\n");
-
+                if(sscanf(entrada, "%d", &p.idade) != 1 || p.idade < 18 || p.idade > 100) {
+                    printf("Idade invalida!\n");
                     p.idade = -1;
                 }
+            } while(p.idade < 18 || p.idade > 100);
 
-            } while(p.idade < 1 || p.idade > 100);
+            printf("Nova disciplina: ");
+            fgets(p.disciplina, sizeof(p.disciplina), stdin);
+            p.disciplina[strcspn(p.disciplina, "\n")] = 0;
+            removerEspacos(p.disciplina);
 
+            do {
+                printf("Novo CPF: ");
+                fgets(cpfBruto, sizeof(cpfBruto), stdin);
+                cpfBruto[strcspn(cpfBruto, "\n")] = 0;
+                if(!cpfValido(cpfBruto))
+                    printf("CPF invalido!\n");
+            } while(!cpfValido(cpfBruto));
+
+            formatarCPF(cpfBruto, cpfFormatado);
+
+            if(strcmp(cpfFormatado, cpfAntigo) != 0 && cpfExiste(cpfFormatado)) {
+                printf("\nERRO: CPF ja cadastrado!\n");
+                fclose(arquivo); fclose(temp); remove("temp.txt");
+                return;
+            }
+
+            strcpy(p.cpf, cpfFormatado);
             encontrado = 1;
         }
 
-        fprintf(temp,
-                "%d;%s;%d\n",
-                p.id,
-                p.nome,
-                p.idade);
+        fprintf(temp, "%d;%s;%d;%s;%s\n",
+                p.id, p.nome, p.idade, p.disciplina, p.cpf);
     }
 
-    fclose(arquivo);
-    fclose(temp);
-
-    remove(bancoAtual);
-
-    rename("temp.txt", bancoAtual);
+    fclose(arquivo); fclose(temp);
+    remove(bancoAtual); rename("temp.txt", bancoAtual);
 
     if(encontrado) {
-
         printf("\n=================================\n");
-
-        printf("Registro alterado com sucesso!\n\n");
-
-        printf("ANTES:\n");
-        printf("Nome: %s\n", nomeAntigo);
-        printf("Idade: %d\n\n", idadeAntiga);
-
-        printf("DEPOIS:\n");
-        printf("Nome: %s\n", p.nome);
-        printf("Idade: %d\n", p.idade);
-
+        printf("Registro alterado!\n\n");
+        printf("ANTES:  %s | %d anos | %s | %s\n", nomeAntigo, idadeAntiga, discAntiga, cpfAntigo);
+        printf("DEPOIS: %s | %d anos | %s | %s\n", p.nome, p.idade, p.disciplina, p.cpf);
         printf("=================================\n");
-    }
-    else {
-
+    } else {
         printf("\nID nao encontrado!\n");
     }
 }
 
 // ======================================
-// EXCLUIR
+// MENU PRINCIPAL
 // ======================================
-void excluirRegistro() {
 
-    FILE *arquivo = fopen(bancoAtual, "r");
-    FILE *temp = fopen("temp.txt", "w");
-
-    if(arquivo == NULL) {
-
-        printf("\nBanco vazio!\n");
-
-        return;
-    }
-
-    Pessoa p;
-
-    int idExcluir;
-    int encontrado = 0;
-
-    char confirmar;
-
-    printf("\nDigite o ID para excluir: ");
-
-    scanf("%d", &idExcluir);
-
-    limparBuffer();
-
-    printf("Tem certeza? (s/n): ");
-
-    scanf("%c", &confirmar);
-
-    if(confirmar != 's' && confirmar != 'S') {
-
-        fclose(arquivo);
-        fclose(temp);
-
-        remove("temp.txt");
-
-        printf("\nExclusao cancelada!\n");
-
-        return;
-    }
-
-    while(fscanf(arquivo,
-           "%d;%49[^;];%d\n",
-           &p.id,
-           p.nome,
-           &p.idade) != EOF) {
-
-        if(p.id != idExcluir) {
-
-            fprintf(temp,
-                    "%d;%s;%d\n",
-                    p.id,
-                    p.nome,
-                    p.idade);
-        }
-        else {
-
-            encontrado = 1;
-        }
-    }
-
-    fclose(arquivo);
-    fclose(temp);
-
-    remove(bancoAtual);
-
-    rename("temp.txt", bancoAtual);
-
-    if(encontrado) {
-
-        printf("\nRegistro excluido com sucesso!\n");
-    }
-    else {
-
-        printf("\nID nao encontrado!\n");
-    }
-}
-
-// ======================================
-// MENU
-// ======================================
 int main() {
-
     escolherBanco();
 
     int op;
+    int ehAluno;
 
     do {
+        ehAluno = strcmp(bancoAtual, "alunos.txt") == 0;
 
         printf("\n=================================\n");
-        printf("              MENU\n");
+        printf("   MENU — %s\n", ehAluno ? "ALUNOS" : "PROFESSORES");
         printf("=================================\n");
-
         printf("1 - Adicionar\n");
         printf("2 - Listar\n");
         printf("3 - Buscar\n");
@@ -602,47 +676,20 @@ int main() {
         printf("5 - Excluir\n");
         printf("6 - Trocar banco\n");
         printf("0 - Sair\n");
-
         printf("\nOpcao: ");
-
         scanf("%d", &op);
-
         limparBuffer();
 
         switch(op) {
-
-            case 1:
-                adicionar();
-                break;
-
-            case 2:
-                listar();
-                break;
-
-            case 3:
-                buscar();
-                break;
-
-            case 4:
-                editar();
-                break;
-
-            case 5:
-                excluirRegistro();
-                break;
-
-            case 6:
-                escolherBanco();
-                break;
-
-            case 0:
-                printf("\nSaindo...\n");
-                break;
-
-            default:
-                printf("\nOpcao invalida!\n");
+            case 1: ehAluno ? adicionarAluno()    : adicionarProfessor();  break;
+            case 2: ehAluno ? listarAlunos()      : listarProfessores();   break;
+            case 3: ehAluno ? buscarAluno()       : buscarProfessor();     break;
+            case 4: ehAluno ? editarAluno()       : editarProfessor();     break;
+            case 5: excluirRegistro();                                      break;
+            case 6: escolherBanco();                                        break;
+            case 0: printf("\nSaindo...\n");                               break;
+            default: printf("\nOpcao invalida!\n");
         }
-
     } while(op != 0);
 
     return 0;
